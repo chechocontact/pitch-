@@ -1,0 +1,48 @@
+name: Build and test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Configure (fetches JUCE)
+        run: cmake -S . -B build -A x64
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      # CoreTests (pattern, MIDI renderer, preview synth, undo, save format) and
+      # EditorTests (the real editor driven offscreen). The REAPER end-to-end check needs REAPER, so it runs locally only.
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      # Inno Setup is preinstalled on windows-latest runners; install it if missing.
+      - name: Build installer (.exe)
+        shell: pwsh
+        run: |
+          if (-not (Get-Command iscc -ErrorAction SilentlyContinue)) { choco install innosetup -y --no-progress }
+          $iscc = (Get-Command iscc -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) { $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" }
+          & $iscc /DAppVersion=0.2.0 /DVst3Dir="..\build\PitchPaint_artefacts\Release\VST3" installer\PitchPaint.iss
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v7
+        with:
+          name: PitchPaint-Setup-windows
+          path: dist/*.exe
+
+      - name: Upload VST3
+        uses: actions/upload-artifact@v7
+        with:
+          name: PitchPaint-VST3-windows
+          path: build/PitchPaint_artefacts/Release/VST3/PitchPaint.vst3
