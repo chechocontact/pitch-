@@ -99,6 +99,8 @@ PitchPaintEditor::PitchPaintEditor (PitchPaintProcessor& p)
     vibratoButton.onClick = [this] { openVibratoPanel(); };
     lfoButton.setTooltip ("Own LFO and smooth Bezier curve for the selected strokes.");
     lfoButton.onClick = [this] { openLfoPanel(); };
+    curveButton.setTooltip ("Choose how the pitch moves between notes (linear, fast or slow exponential) for the selected strokes.");
+    curveButton.onClick = [this] { openTransitionPanel(); };
     synthButton.setTooltip ("Host a VST3 synth inside PitchPaint, so it works in FL Studio without MIDI routing.");
     synthButton.onClick = [this] { showSynthMenu(); };
     dynamicsButton.setClickingTogglesState (true);
@@ -191,7 +193,7 @@ PitchPaintEditor::PitchPaintEditor (PitchPaintProcessor& p)
     setFocusContainerType (FocusContainerType::keyboardFocusContainer);
     int order = 1;
     for (auto* c : std::initializer_list<juce::Component*> { &pencilButton, &lineButton, &selectButton, &eraserButton, &undoButton,
-                                                             &redoButton, &editMenuButton, &smoothButton, &vibratoButton, &lfoButton, &synthButton, &dynamicsButton,
+                                                             &redoButton, &editMenuButton, &smoothButton, &vibratoButton, &lfoButton, &curveButton, &synthButton, &dynamicsButton,
                                                              &smoothingSlider, &lengthBox, &snapBox,
                                                              &keyBox, &scaleBox, &magnetSlider, &velocitySlider, &modeBox,
                                                              &rangeSlider, &previewToggle, &canvas })
@@ -426,6 +428,30 @@ void PitchPaintEditor::openVibratoPanel()
     };
 
     juce::CallOutBox::launchAsynchronously (std::move (panel), vibratoButton.getBounds(), this);
+}
+
+void PitchPaintEditor::openTransitionPanel()
+{
+    const auto selection = canvas.getSelection();
+    if (selection.empty())
+    {
+        showStatus ("Select one or more strokes (S) to change how their notes glide into each other.");
+        return;
+    }
+
+    auto current = pitchpaint::Transition::linear;
+    for (const auto& t : processor.getPattern().trajectories)
+        if (t.id == selection.front())
+            current = t.transition;
+
+    auto panel = std::make_unique<TransitionPanel> (current, "Note transition for " + juce::String ((int) selection.size())
+                                                                 + (selection.size() == 1 ? " stroke" : " strokes"));
+    panel->onChoose = [this] (pitchpaint::Transition tr)
+    {
+        canvas.setSelectionTransition (tr);
+        showStatus ("Transition changed. It applies to pitch steps of half a semitone or more. Ctrl+Z to undo.");
+    };
+    juce::CallOutBox::launchAsynchronously (std::move (panel), curveButton.getBounds(), this);
 }
 
 void PitchPaintEditor::openLfoPanel()
@@ -732,7 +758,7 @@ std::vector<std::vector<PitchPaintEditor::Item>> PitchPaintEditor::toolbarGroups
     return {
         { { &pencilButton, 64 }, { &lineButton, 56 }, { &selectButton, 64 }, { &eraserButton, 64 } },
         { { &undoButton, 54 }, { &redoButton, 54 }, { &editMenuButton, 64 } },
-        { { &smoothButton, 66 }, { &vibratoButton, 84 }, { &lfoButton, 64 }, { &dynamicsButton, 84 } },
+        { { &smoothButton, 66 }, { &vibratoButton, 84 }, { &lfoButton, 64 }, { &curveButton, 70 }, { &dynamicsButton, 84 } },
         { { &synthButton, 84 } },
         { { nullptr, labelWidth (smoothingLabel) }, { &smoothingSlider, 112 } },
         { { nullptr, labelWidth (lengthLabel) }, { &lengthBox, 88 }, { nullptr, labelWidth (snapLabel) }, { &snapBox, 80 } },

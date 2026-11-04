@@ -31,6 +31,7 @@ public:
     void nudgeSelection (double deltaBeats, double deltaPitch); // keyboard moves, one undo step each
     void smoothSelection();                                      // one more step of smoothing, one undo step
     void setSelectionVibrato (pitchpaint::Vibrato, bool live);
+    void setSelectionTransition (pitchpaint::Transition); // one undo step
     void setSelectionLfo (pitchpaint::Lfo, bool bezier, bool live); // same undo rule as the vibrato   // live: no undo step (caller wraps a gesture)
 
     // Clipboard (system clipboard, so it works across PitchPaint instances). Each edit is one undo step.

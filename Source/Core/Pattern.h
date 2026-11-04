@@ -48,6 +48,16 @@ struct Lfo
 // Value of an LFO shape at a phase in cycles (any real number), range -1..1.
 double lfoWave (LfoShape, double phaseCycles);
 
+// How the pitch moves between two different notes of a stroke (e.g. C up to E). Exactly these five shapes.
+// "Fast" leaves the first note quickly and settles into the next; "slow" stays near the first note, then rushes
+// to the next. The two medium ones sit halfway between those and the straight line.
+enum class Transition { fastExp = 0, fast = 1, linear = 2, slow = 3, slowExp = 4 };
+
+constexpr double minTransitionSemitones = 0.5; // smaller pitch steps (freehand wobble) stay as drawn
+
+// Shape of a transition: maps 0..1 (time through the move) to 0..1 (how far the pitch has travelled).
+double transitionShape (Transition, double u);
+
 // A value from 0 to 1 over time, for a stroke's dynamics (loudness). Beats are relative to the stroke's start, so the
 // envelope moves, pastes and duplicates with its stroke. No points = constant full level.
 struct EnvelopePoint
@@ -86,6 +96,7 @@ struct Trajectory
     Vibrato vibrato;
     Envelope dynamics; // loudness over time (relative beats); empty = full
     Lfo lfo;           // own LFO for this stroke (appended last so older aggregate initialisers keep working)
+    Transition transition = Transition::linear; // applied to every pitch change of at least minTransitionSemitones
     bool bezier = false; // true: the points are joined by smooth cubic Bezier segments instead of straight lines
 
     bool isPlayable() const { return points.size() >= 2 && endBeat() > startBeat(); }

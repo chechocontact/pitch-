@@ -6,6 +6,7 @@
 #include "DynamicsLane.h"
 #include "VibratoPanel.h"
 #include "LfoPanel.h"
+#include "TransitionPanel.h"
 
 class PitchPaintEditor final : public juce::AudioProcessorEditor, private juce::Timer
 {
@@ -36,6 +37,7 @@ private:
     void showEditMenu();
     void openVibratoPanel();
     void openLfoPanel();
+    void openTransitionPanel();
     void showSynthMenu();
     void loadSynth (const juce::File&);
     void showSynthWindow();
@@ -57,7 +59,7 @@ private:
 
     juce::TextButton pencilButton { "Pencil" }, lineButton { "Line" }, selectButton { "Select" }, eraserButton { "Eraser" };
     juce::TextButton undoButton { "Undo" }, redoButton { "Redo" }, smoothButton { "Smooth" };
-    juce::TextButton editMenuButton, vibratoButton { "Vibrato..." }, lfoButton { "LFO..." }, dynamicsButton { "Dynamics" };
+    juce::TextButton editMenuButton, vibratoButton { "Vibrato..." }, lfoButton { "LFO..." }, curveButton { "Curve..." }, dynamicsButton { "Dynamics" };
     juce::TextButton synthButton { "Synth..." };
     juce::Label smoothingLabel { {}, "Smoothing" };
     juce::Slider smoothingSlider { juce::Slider::IncDecButtons, juce::Slider::TextBoxLeft };

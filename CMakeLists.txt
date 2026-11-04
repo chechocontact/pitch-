@@ -47,6 +47,7 @@ target_sources(PitchPaint PRIVATE
     Source/LookAndFeel.cpp
     Source/VibratoPanel.cpp
     Source/LfoPanel.cpp
+    Source/TransitionPanel.cpp
     Source/SynthHost.cpp
     Source/DynamicsLane.cpp)
 
@@ -71,6 +72,7 @@ target_sources(EditorTests PRIVATE
     Source/LookAndFeel.cpp
     Source/VibratoPanel.cpp
     Source/LfoPanel.cpp
+    Source/TransitionPanel.cpp
     Source/SynthHost.cpp
     Source/DynamicsLane.cpp)
 target_compile_definitions(EditorTests PRIVATE

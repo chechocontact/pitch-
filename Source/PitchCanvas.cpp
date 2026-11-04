@@ -426,7 +426,7 @@ std::vector<juce::Point<float>> PitchCanvas::screenPoints (const pitchpaint::Tra
     const auto& tuning = processor.getPattern().tuning;
     const double bps = processor.getBeatsPerSecond();
     const auto at = [&] (double beat) { return juce::Point<float> { beatToX (beat), pitchToY (pitchpaint::soundingPitch (t, tuning, beat, bps)) }; };
-    const float pxStep = (t.vibrato.isOn() || t.lfo.isOn()) ? 2.0f : ((tuning.magnet > 0.0 || t.bezier) ? 3.0f : 0.0f);
+    const float pxStep = (t.vibrato.isOn() || t.lfo.isOn()) ? 2.0f : ((tuning.magnet > 0.0 || t.bezier || t.transition != pitchpaint::Transition::linear) ? 3.0f : 0.0f);
 
     std::vector<juce::Point<float>> pts;
     for (size_t i = 0; i < t.points.size(); ++i)
@@ -834,6 +834,18 @@ void PitchCanvas::setSelectionVibrato (pitchpaint::Vibrato vibrato, bool live)
         processor.setPattern (std::move (pattern)); // inside a gesture: the caller records one undo step
     else
         processor.applyEdit (std::move (pattern));
+    repaint();
+}
+
+void PitchCanvas::setSelectionTransition (pitchpaint::Transition tr)
+{
+    if (selection.empty())
+        return;
+    auto pattern = processor.getPattern();
+    for (auto& t : pattern.trajectories)
+        if (isSelected (t.id))
+            t.transition = tr;
+    processor.applyEdit (std::move (pattern));
     repaint();
 }
 

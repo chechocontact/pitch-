@@ -141,7 +141,7 @@ void testSerialiseRoundTrip()
 
     CHECK (parsePattern (serialise (Pattern {})) == Pattern {});
     CHECK (! parsePattern ("").has_value());
-    CHECK (! parsePattern ("PitchPaintPattern 7\nlength 4\n").has_value());              // unknown future version
+    CHECK (! parsePattern ("PitchPaintPattern 8\nlength 4\n").has_value());              // unknown future version
 
     // Tuning round-trips; a malformed tuning line is rejected; version 2 (no tuning) loads with the default.
     Pattern tuned = p;
@@ -1027,6 +1027,52 @@ void testLfoAndBezier()
     CHECK (old.has_value() && ! old->trajectories[0].lfo.isOn() && ! old->trajectories[0].bezier);
 }
 
+void testTransitions()
+{
+    using namespace pitchpaint;
+    const Transition all[] = { Transition::fastExp, Transition::fast, Transition::linear, Transition::slow, Transition::slowExp };
+
+    // Every shape starts at 0, ends at 1 and only goes forward.
+    for (auto tr : all)
+    {
+        CHECK (std::abs (transitionShape (tr, 0.0)) < 1e-12 && std::abs (transitionShape (tr, 1.0) - 1.0) < 1e-12);
+        double prev = 0.0;
+        for (double u = 0.0; u <= 1.0; u += 0.01)
+        {
+            CHECK (transitionShape (tr, u) >= prev - 1e-12);
+            prev = transitionShape (tr, u);
+        }
+    }
+
+    // At the halfway point: fast shapes are ahead of linear, slow ones behind, ordered from fast to slow.
+    double half[5];
+    for (int i = 0; i < 5; ++i)
+        half[i] = transitionShape (all[i], 0.5);
+    CHECK (half[0] > half[1] && half[1] > half[2] && half[2] > half[3] && half[3] > half[4]);
+    CHECK (std::abs (half[2] - 0.5) < 1e-12);
+
+    // C (60) to E (64): the stroke follows the chosen shape; the notes themselves are unchanged.
+    Trajectory t { 1, { { 0.0, 60.0 }, { 1.0, 60.0 }, { 2.0, 64.0 }, { 3.0, 64.0 } } };
+    CHECK (std::abs (t.pitchAt (1.5) - 62.0) < 1e-9); // linear
+    t.transition = Transition::fastExp;
+    CHECK (t.pitchAt (1.5) > 63.0);
+    CHECK (t.pitchAt (0.5) == 60.0 && t.pitchAt (2.5) == 64.0); // the held notes stay flat
+    t.transition = Transition::slowExp;
+    CHECK (t.pitchAt (1.5) < 61.0);
+
+    // Tiny freehand steps are left alone.
+    Trajectory wobble { 2, { { 0.0, 60.0 }, { 1.0, 60.2 } } };
+    wobble.transition = Transition::slowExp;
+    CHECK (std::abs (wobble.pitchAt (0.5) - 60.1) < 1e-9);
+
+    // Save / load keeps it; old files default to linear.
+    Pattern p;
+    t.transition = Transition::slow;
+    p.trajectories = { t };
+    const auto parsed = parsePattern (serialise (p));
+    CHECK (parsed.has_value() && *parsed == p && parsed->trajectories[0].transition == Transition::slow);
+}
+
 int main()
 {
     const std::pair<const char*, std::function<void()>> tests[] = {
@@ -1042,6 +1088,7 @@ int main()
         { "smoothing", testSmoothing },
         { "vibrato", testVibrato },
         { "per-stroke LFO and Bezier", testLfoAndBezier },
+        { "note transition curves", testTransitions },
         { "copy / paste", testClipboard },
         { "dynamics", testDynamics },
         { "undo history", testUndoHistory },

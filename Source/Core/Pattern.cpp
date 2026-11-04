@@ -29,6 +29,8 @@ double Trajectory::pitchAt (double beat) const
         return b.pitch;
 
     const double u = (beat - a.beat) / span;
+    if (transition != Transition::linear && std::abs (b.pitch - a.pitch) >= minTransitionSemitones)
+        return a.pitch + (b.pitch - a.pitch) * transitionShape (transition, u);
     if (! bezier)
         return a.pitch + (b.pitch - a.pitch) * u;
 
@@ -51,6 +53,21 @@ double Trajectory::pitchAt (double beat) const
     const double p1 = p0 + ma * span / 3.0, p2 = p3 - mb * span / 3.0;
     const double v = 1.0 - u;
     return v * v * v * p0 + 3.0 * v * v * u * p1 + 3.0 * v * u * u * p2 + u * u * u * p3;
+}
+
+double transitionShape (Transition tr, double u)
+{
+    u = std::clamp (u, 0.0, 1.0);
+    double k = 0.0; // exponential rate: negative = fast start, positive = slow start
+    switch (tr)
+    {
+        case Transition::fastExp: k = -6.0; break;
+        case Transition::fast:    k = -3.0; break;
+        case Transition::linear:  return u;
+        case Transition::slow:    k = 3.0; break;
+        case Transition::slowExp: k = 6.0; break;
+    }
+    return (std::exp (k * u) - 1.0) / (std::exp (k) - 1.0);
 }
 
 double lfoWave (LfoShape shape, double phase)
@@ -278,8 +295,8 @@ void cutTrajectory (Pattern& p, std::uint32_t id, double fromBeat, double toBeat
     if (toBeat <= original.startBeat() || fromBeat >= original.endBeat())
         return; // no overlap
 
-    Trajectory left { original.id, {}, original.velocity, original.vibrato, original.dynamics, original.lfo, original.bezier },
-               right { p.nextId(), {}, original.velocity, original.vibrato, original.dynamics, original.lfo, original.bezier };
+    Trajectory left { original.id, {}, original.velocity, original.vibrato, original.dynamics, original.lfo, original.transition, original.bezier },
+               right { p.nextId(), {}, original.velocity, original.vibrato, original.dynamics, original.lfo, original.transition, original.bezier };
     if (! right.dynamics.empty())
     {
         // Re-base to the right part's start, keeping its level at the cut.
@@ -356,7 +373,7 @@ namespace
     // Version 2 added "v <velocity>" after the id, version 3 the "tuning <key> <scale> <magnet>" line, version 4
     // an optional "vib <cents> <hz> <fade>" after the velocity, version 5 an optional "dyn <count> <beat value>..."
     // after that. Older versions still load, with defaults.
-    constexpr const char* header = "PitchPaintPattern 6";
+    constexpr const char* header = "PitchPaintPattern 7";
 
     void appendNumber (std::string& s, double v)
     {
@@ -395,6 +412,8 @@ std::string serialise (const Pattern& p)
             s += ' ' + std::to_string ((int) t.lfo.shape) + ' ';
             appendNumber (s, t.lfo.fadeBeats);
         }
+        if (t.transition != Transition::linear)
+            s += " tr " + std::to_string ((int) t.transition);
         if (t.bezier)
             s += " bez";
         if (! t.dynamics.empty())
@@ -449,7 +468,7 @@ std::optional<Pattern> parsePattern (const std::string& text)
 
     const auto magic = word();
     const auto version = word();
-    if (magic != "PitchPaintPattern" || (version != "1" && version != "2" && version != "3" && version != "4" && version != "5" && version != "6") || word() != "length")
+    if (magic != "PitchPaintPattern" || (version != "1" && version != "2" && version != "3" && version != "4" && version != "5" && version != "6" && version != "7") || word() != "length")
         return std::nullopt;
 
     Pattern p;
@@ -505,6 +524,17 @@ std::optional<Pattern> parsePattern (const std::string& text)
                 return std::nullopt;
             l.shape = (LfoShape) (int) shape;
             t.lfo = l;
+        }
+        else
+        {
+            pos = save;
+        }
+        if (const char* save = pos; word() == "tr")
+        {
+            double v = 0.0;
+            if (! number (v) || v < 0.0 || v > 4.0 || v != std::floor (v))
+                return std::nullopt;
+            t.transition = (Transition) (int) v;
         }
         else
         {

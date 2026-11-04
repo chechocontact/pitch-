@@ -2,7 +2,7 @@
 
 > **Fork changes (v0.2):** a **VST3 synth hosted inside the plugin** (so FL Studio needs no MIDI routing: the plugin
 > outputs the synth's audio directly), a **per-stroke LFO** (sine / triangle / saw / square, depth, rate, fade-in),
-> **Bezier-smoothed curves** per stroke, and a **Windows 11 installer** (`installer/PitchPaint.iss`, built by CI into
+> **Bezier-smoothed curves** per stroke, **note transition curves** (button *Curve...*: linear, fast exp, fast, slow, slow exp), and a **Windows 11 installer** (`installer/PitchPaint.iss`, built by CI into
 > `dist/PitchPaint-<version>-Setup.exe`). Still AGPL-3.0-or-later; the full source must be offered with any binary.
 >
 > **FL Studio:** load PitchPaint as an instrument, click **Synth...** and pick a VST3 synth with MPE (Surge XT, Vital,
